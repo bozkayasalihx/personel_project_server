@@ -8,11 +8,10 @@ import path from "path";
 import { buildSchema } from "type-graphql";
 import { createConnection } from "typeorm";
 import { REDIS_SECRET, __prod__ } from "./constants";
+import cors from "cors";
 
 const RedisStore = connectRedis(session);
 const redisClient = new Redis();
-
-// redisClient.on("error", console.error);
 
 const PORT = 4000;
 const main = async () => {
@@ -27,6 +26,13 @@ const main = async () => {
     });
 
     const app = express();
+
+    app.use(
+        cors({
+            origin: "http://localhost:3000",
+            credentials: true,
+        })
+    );
 
     app.use(
         session({
@@ -48,12 +54,14 @@ const main = async () => {
         })
     );
 
-    // app.use((req, _, next) => {
-    //     if (!req.session) {
-    //         return next(new Error(" session not found"));
-    //     }
-    //     next();
-    // });
+    app.use((req, _, next) => {
+        if (!req.session) {
+            return next(new Error(" session not found"));
+        }
+        next();
+    });
+
+    redisClient.on("error", console.error);
 
     const apolloServer = new ApolloServer({
         schema: await buildSchema({
@@ -64,7 +72,7 @@ const main = async () => {
     });
 
     await apolloServer.start();
-    apolloServer.applyMiddleware({ app });
+    apolloServer.applyMiddleware({ app, cors: false });
 
     app.listen(PORT, () =>
         console.log(`server running on localhost:${PORT}/graphql`)
