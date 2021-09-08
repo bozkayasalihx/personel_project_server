@@ -1,0 +1,12 @@
+{
+    "type": "postgres",
+    "host": "localhost",
+    "username": "postgres",
+    "password": "google",
+    "database": "test",
+    "syncronize": true,
+    "logging": true,
+    "entities": ["./src/entities/*.ts", "./dist/entities/*.js"],
+    "migrations": ["./src/migration/**/*.ts", "./dist/migrations/*.js"],
+    "subscribers": ["./src/subscriber/*.ts", "./dist/subscriber/*.js"]
+}
