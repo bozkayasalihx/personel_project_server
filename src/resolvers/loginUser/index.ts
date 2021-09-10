@@ -1,9 +1,10 @@
-import { User } from "../../entities/User";
-import { Arg, Ctx, Field, InputType, Mutation, Resolver } from "type-graphql";
+import argon2 from "argon2";
 import { isEmail } from "class-validator";
+import { callback } from "../../utils/callback";
+import { Arg, Field, InputType, Mutation, Resolver } from "type-graphql";
+import { User } from "../../entities/User";
 import { validate } from "../../utils/validate";
 import { UserResponse } from "../registerUser/UserInput";
-import { MyContext } from "../../types";
 
 @InputType()
 class LoginInput {
@@ -16,13 +17,13 @@ class LoginInput {
 
 @Resolver()
 export class LoginUserResolver {
-    @Mutation(() => Boolean)
+    @Mutation(() => UserResponse)
     async loginUser(
         @Arg("loginInput") options: LoginInput
         // @Ctx() { req }: MyContext
-    ) {
-        const valid = validate(options.password, options.usernameOrEmail);
+    ): Promise<UserResponse> {
         // some validtions
+        const valid = validate(options.password, options.usernameOrEmail);
         if (!valid[options.password]) {
             return {
                 errors: [
@@ -41,51 +42,61 @@ export class LoginUserResolver {
                 ],
             };
         }
-        const validEmail = isEmail(options.usernameOrEmail);
 
-        const user = await User.findOne({
-            where: {
-                email: options.usernameOrEmail,
-                username: options.usernameOrEmail,
-            },
-        });
+        const cb = async (user: User) => {
+            if (!user) {
+                return {
+                    errors: [
+                        { field: "username", message: "username not found" },
+                    ],
+                };
+            }
+            // check password is correct;
+            const valid = await argon2.verify(user.password, options.password);
+            if (!valid) {
+                return {
+                    errors: [
+                        { field: "password", message: "password not correct" },
+                    ],
+                };
+            }
 
-        console.log(user);
-        return true;
-        //     if (!validEmail) {
-        //         // usenameOrEmail == username;
-        //         const username = options.usernameOrEmail;
+            return null;
+        };
+        const user = await callback(options.usernameOrEmail, cb);
 
-        //         const user = await User.findOne({ where: { username } });
+        // const validEmail = isEmail(options.usernameOrEmail);
+        // let user;
+        // if (validEmail) {
+        //     user = await User.findOne({
+        //         where: { email: options.usernameOrEmail },
+        //     });
 
-        //         if (!user) {
-        //             return {
-        //                 errors: [
-        //                     {
-        //                         field: "username",
-        //                         message: "true", // for the hacker attacks
-        //                     },
-        //                 ],
-        //             };
-        //         }
-        //     } else {
-        //         // not valid which is stands for usernameOrEmail === email
-        //         const email = options.usernameOrEmail;
-        //         const user = await User.findOne({ where: { email } });
+        //
 
-        //         if (!user) {
-        //             return {
-        //                 errors: [
-        //                     {
-        //                         field: "email",
-        //                         message: "true",
-        //                     },
-        //                 ],
-        //             };
-        //         }
+        //     return {
+        //         user,
+        //     };
+        // } else {
+        //     user = await User.findOne({
+        //         where: { username: options.usernameOrEmail },
+        //     });
+
+        //     if (!user) {
+        //         return {
+        //             errors: [
+        //                 { field: "usrname", message: "username not found" },
+        //             ],
+        //         };
         //     }
 
-        //     req.session.userId = user.id;
+        //     return {
+        //         user,
+        //     };
         // }
+
+        return {
+            user,
+        };
     }
 }

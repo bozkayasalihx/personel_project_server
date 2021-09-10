@@ -1,14 +1,14 @@
-import "reflect-metadata";
 import { ApolloServer } from "apollo-server-express";
 import connectRedis from "connect-redis";
+import cors from "cors";
 import express from "express";
 import session from "express-session";
 import Redis from "ioredis";
 import path from "path";
+import "reflect-metadata";
 import { buildSchema } from "type-graphql";
 import { createConnection } from "typeorm";
 import { REDIS_SECRET, __prod__ } from "./constants";
-import cors from "cors";
 
 const RedisStore = connectRedis(session);
 const redisClient = new Redis();
@@ -29,7 +29,7 @@ const main = async () => {
 
     app.use(
         cors({
-            origin: "http://localhost:3000",
+            origin: "https://studio.apollographql.com",
             credentials: true,
         })
     );
@@ -48,8 +48,8 @@ const main = async () => {
             cookie: {
                 maxAge: 1000 * 60 * 60 * 24 * 365 * 20, // 20 years
                 httpOnly: !__prod__,
-                secure: __prod__,
-                sameSite: "lax",
+                secure: true,
+                sameSite: "none", 
             },
         })
     );
