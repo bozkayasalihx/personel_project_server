@@ -1,13 +1,11 @@
 import argon2 from "argon2";
-import { isEmail } from "class-validator";
-import { callback } from "../../utils/callback";
 import { Arg, Field, InputType, Mutation, Resolver } from "type-graphql";
-import { User } from "../../entities/User";
+import { callback } from "../../utils/callback";
 import { validate } from "../../utils/validate";
 import { UserResponse } from "../registerUser/UserInput";
 
 @InputType()
-class LoginInput {
+export class LoginInput {
     @Field()
     usernameOrEmail: string;
 
@@ -43,60 +41,30 @@ export class LoginUserResolver {
             };
         }
 
-        const cb = async (user: User) => {
-            if (!user) {
-                return {
-                    errors: [
-                        { field: "username", message: "username not found" },
-                    ],
-                };
+        const userResponse = await callback(
+            options.usernameOrEmail,
+            async user => {
+                console.log("user: ", user);
+
+                const valid = await argon2.verify(
+                    user.password,
+                    options.password
+                );
+
+                console.log("is valid: ",  valid)
+
+                if (!valid) {
+                    return {
+                        errors: [
+                            { field: "password", message: "password wrong" },
+                        ],
+                    };
+                } else {
+                    return { user };
+                }
             }
-            // check password is correct;
-            const valid = await argon2.verify(user.password, options.password);
-            if (!valid) {
-                return {
-                    errors: [
-                        { field: "password", message: "password not correct" },
-                    ],
-                };
-            }
+        );
 
-            return null;
-        };
-        const user = await callback(options.usernameOrEmail, cb);
-
-        // const validEmail = isEmail(options.usernameOrEmail);
-        // let user;
-        // if (validEmail) {
-        //     user = await User.findOne({
-        //         where: { email: options.usernameOrEmail },
-        //     });
-
-        //
-
-        //     return {
-        //         user,
-        //     };
-        // } else {
-        //     user = await User.findOne({
-        //         where: { username: options.usernameOrEmail },
-        //     });
-
-        //     if (!user) {
-        //         return {
-        //             errors: [
-        //                 { field: "usrname", message: "username not found" },
-        //             ],
-        //         };
-        //     }
-
-        //     return {
-        //         user,
-        //     };
-        // }
-
-        return {
-            user,
-        };
+        return userResponse;
     }
 }
